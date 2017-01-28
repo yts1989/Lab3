@@ -23,8 +23,37 @@
 #include <math.h>
 #include <pthread.h>
 #include <stdio.h>
+    pthread_mutex_t locker;
+    pthread_t dp_odd, dp_even;
+	
+typedef struct param{
+	
+	int Count;
+	ray_t* ray;
+	scene_t* scene;
+	double closest_depth;
+	int closest_index;
+	
+}param;
 
-
+  void* depth(void* arg){
+        for( int i = ((param *)arg)->Count; i<8; i+=2 )
+        {
+            pthread_mutex_lock(&locker);
+            double depth = sphere_intersect( &(((param *)arg)->scene->spheres[i]), ((param *)arg)->ray);
+         //   printf("%d\n", i );
+            pthread_mutex_unlock(&locker);
+            if( depth < ((param *)arg)->closest_depth )
+            {
+               ((param *)arg)->closest_depth = depth;
+               ((param *)arg)->closest_index = i;
+				//  printf(" %f ", ((param *)arg)->closest_depth);
+            }
+		
+        }
+		//	printf("%d", ((param *)arg)->closest_index);
+	
+    } 
 /*
  * trace ray into the scene.  if it hits an object,
  * run the object's shader to figure out the out_color
@@ -32,68 +61,68 @@
  */
 void trace( scene_t* scene, Vec3 out_color, ray_t* ray, int recursion_depth )
 {
-    double closest_depth_odd = dInfinity;
     double closest_depth = dInfinity;
-    double closest_depth_even = dInfinity;
-    int closest_index_odd = -1;
-    int closest_index_even = -1;
     int closest_index = -1;
-    int limit_odd = scene->sphere_count;
-    int limit_even = scene->sphere_count;
-
-    pthread_mutex_t locker;
-    pthread_t dp_odd, dp_even;
-
-    //printf("%d\n", scene->sphere_count);
-
-    void* depth_odd(void* arg){
-        for( int i=0; i<limit_odd; i+=2 )
+	
+	
+	
+/*	
+    for( int i=0; i<scene->sphere_count; ++i )
+    {
+        double depth = sphere_intersect( &(scene->spheres[i]), ray );
+        if( depth < closest_depth )
         {
-            pthread_mutex_lock(&locker);
-            double depth = sphere_intersect( &(scene->spheres[i]), ray);
-            //printf("%d\n", i );
-            pthread_mutex_unlock(&locker);
-            if( depth < closest_depth_odd )
-            {
-                closest_depth_odd= depth;
-                closest_index_odd = i;
-            }
+            closest_depth = depth;
+            closest_index = i;
         }
-    } 
-    void* depth_even(void* arg){
-        for( int i=1; i<limit_even; i+=2 )
-        {
-            pthread_mutex_lock(&locker);
-            double depth = sphere_intersect( &(scene->spheres[i]), ray);
-            //printf("%d\n", i );
-            pthread_mutex_unlock(&locker);
-            if( depth < closest_depth_even )
-            {
-                closest_depth_even = depth;
-                closest_index_even = i;
-            }
-        }
-    }   
-    pthread_mutex_init(&locker, NULL);
+    }
 
-    pthread_create(&dp_odd, NULL, &depth_odd, NULL);
-    pthread_create(&dp_even, NULL, &depth_even, NULL);
+	*/
+	
+	
+	param thread1,thread2;
+	
+	thread1.ray =  ray;
+	thread1.Count = 0;
+	thread1.scene = scene;
+	thread1.closest_depth = closest_depth;
+	thread1.closest_index = -1;
+	thread2 = thread1;
+	thread2.Count = 1;
+	
+	
+	
+	
+	
+	pthread_mutex_init(&locker, NULL);
+    pthread_create(&dp_odd, NULL, &depth, &thread1);
+    pthread_create(&dp_even, NULL, &depth, &thread2);
+	
+	
+   
+  
+   
 
     pthread_join(dp_odd,NULL);
     pthread_join(dp_even,NULL);
-    pthread_mutex_destroy(&locker);
-
-    closest_index = closest_depth_odd<closest_depth_even ? closest_index_odd:closest_index_even;
-    closest_depth = closest_depth_odd<closest_depth_even ? closest_depth_odd:closest_depth_even;
-  
-    if( closest_index != -1 && scene->spheres[closest_index].shader )
+	
+	closest_index = (thread1.closest_depth)<(thread2.closest_depth) ? thread1.closest_index:thread2.closest_index;
+    closest_depth = (thread1.closest_depth)<(thread2.closest_depth) ? thread1.closest_depth:thread2.closest_depth;
+//	printf("%f   ", closest_depth);
+//	printf("    %d", closest_index);
+	 if( closest_index != -1 && scene->spheres[closest_index].shader )
     {
         /* hitting sphere[closest_index] */
         /* call the sphere's shading function */
         (*(scene->spheres[closest_index].shader))( out_color,
                 scene, &(scene->spheres[closest_index]),
                 ray, closest_depth, recursion_depth + 1 );
-    }
+      }
+     
+	
+	
+    pthread_mutex_destroy(&locker);
+	
 }
 
 /*
