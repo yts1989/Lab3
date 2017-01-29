@@ -27,13 +27,10 @@
 #include <math.h>
 #include <pthread.h>
 
+
 static double dirs[6][3] =
 { {1,0,0}, {-1,0,0}, {0,1,0}, {0,-1,0}, {0,0,1}, {0,0,-1} };
 static const int opposites[] = { 1, 0, 3, 2, 5, 4 };
-
-
-
-
 
 
 static void
@@ -160,156 +157,65 @@ enum { max_color = 255 };
 /* z value for ray */
 enum { z = 0 };
 
+float res_0[2600];
+float res_1[2600];
+float res_2[2600];
 
+void* sub_thr(void* arg){
 
-int in_count=0;
-int out_count = 0;
-pthread_mutex_t lock_buffer;
- pthread_t thread0;
- 
- 
-void* thread_0(void *pixel_color_buffer)
-{
-	scene_t scene = create_sphereflake_scene( sphereflake_recursion );
-	
-	Vec3 camera_pos;
-	set( camera_pos, 0., 0., -4. );
-	Vec3 camera_dir;
-	set( camera_dir, 0., 0., 1. );
-	const double camera_fov = 75.0 * (PI/180.0);
-	
-	Vec3 bg_color;
-	set( bg_color, 0.8, 0.8, 1 );
-	Vec3 pixel_color;
-	set( pixel_color, 0, 0, 0 );
-	
-	const double pixel_dx = tan( 0.5*camera_fov ) / ((double)width*0.5);
-	const double pixel_dy = tan( 0.5*camera_fov ) / ((double)height*0.5);
-	const double subsample_dx
-	= halfSamples  ? pixel_dx / ((double)halfSamples*2.0)
-			: pixel_dx;
-	const double subsample_dy
-	= halfSamples ? pixel_dy / ((double)halfSamples*2.0)
-			: pixel_dy;
-	
+	Vec3 camera_pos_sub;
+	set( camera_pos_sub, 0., 0., -4. );
+	Vec3 camera_dir_sub;
+	set( camera_dir_sub, 0., 0., 1. );
+	const double camera_fov_sub = 75.0 * (PI/180.0);
+	Vec3 bg_color_sub;
+	set( bg_color_sub, 0.8, 0.8, 1 );
 
+	const double pixel_dx_sub = tan( 0.5*camera_fov_sub ) / ((double)width*0.5);
+	const double pixel_dy_sub = tan( 0.5*camera_fov_sub ) / ((double)height*0.5);
+	const double subsample_dx_sub
+	= halfSamples  ? pixel_dx_sub / ((double)halfSamples*2.0)
+			: pixel_dx_sub;
+	const double subsample_dy_sub
+	= halfSamples ? pixel_dy_sub / ((double)halfSamples*2.0)
+			: pixel_dy_sub;
 
-			
-			
-			
-	for( int px=0; px<width; ++px )
+	for( int px=20; px<width; ++px )
 	{
-		const double x = pixel_dx * ((double)( px-(width/2) ));
+		const double x = pixel_dx_sub * ((double)( px-(width/2) ));
 		for( int py=0; py<height; ++py )
 		{
-			const double y = pixel_dy * ((double)( py-(height/2) ));
-			
+			const double y = pixel_dy_sub * ((double)( py-(height/2) ));
 			Vec3 pixel_color;
 			set( pixel_color, 0, 0, 0 );
-               
+
 			for( int xs=-halfSamples; xs<=halfSamples; ++xs )
 			{
 				for( int ys=-halfSamples; ys<=halfSamples; ++ys )
 				{
-					double subx = x + ((double)xs)*subsample_dx;
-					double suby = y + ((double)ys)*subsample_dy;
+					double subx = x + ((double)xs)*subsample_dx_sub;
+					double suby = y + ((double)ys)*subsample_dy_sub;
 
 					/* construct the ray coming out of the camera, through
 					 * the screen at (subx,suby)
 					 */
 					 ray_t pixel_ray;
-					 copy( pixel_ray.org, camera_pos );
+					 copy( pixel_ray.org, camera_pos_sub );
 					 Vec3 pixel_target;
 					 set( pixel_target, subx, suby, z );
-					 sub( pixel_ray.dir, pixel_target, camera_pos );
+					 sub( pixel_ray.dir, pixel_target, camera_pos_sub );
 					 norm( pixel_ray.dir, pixel_ray.dir );
 
 					 Vec3 sample_color;
-					 copy( sample_color, bg_color );
+					 copy( sample_color, bg_color_sub );
 					 /* trace the ray from the camera that
 					  * passes through this pixel */
-					 trace( &scene, sample_color, &pixel_ray, 0 );
-				//	 printf(" %f ", sample_color[0]);
+					 trace( (scene_t *)arg, sample_color, &pixel_ray, 0 );
 					 /* sum color for subpixel AA */
-			//		 pthread_mutex_lock(&lock_buffer);
-					 
-					 
-				//	  printf(" %f ", pixel_color[0]);
-					  
 					 add( pixel_color, pixel_color, sample_color );
-				//	printf(" to %f ", (double *)(pixel_color_buffer+in_count*3));
-					 printf(" %f ", pixel_color[0]);
-			//		 pthread_mutex_unlock(&lock_buffer);
 				}
 			}
-		//	 printf(" %f ", pixel_color[0]);
-		// printf("%f ", (double *)(pixel_color_buffer+in_count*3));		
-		 set( ((double*)pixel_color_buffer)+in_count*3, pixel_color[0], pixel_color[1], pixel_color[2] );
-       //  printf("%f ", (double *)(pixel_color_buffer+in_count*3));		
-		
-		 in_count ++;
-		// if(in_count > 10) in_count = 0;
-		}
-	}
-	
-	free_scene( &scene );
 
-	
-}
-
-
-
-
-
-int
-main( int argc, char **argv )
-{
-	//scene_t scene = create_sphereflake_scene( sphereflake_recursion );
-
-	/* Write the image format header */
-	/* P3 is an ASCII-formatted, color, PPM file */
-		double pixel_color_buffer[10*90*3];
-	 for(int i=0; i<900*3;i++)
-		pixel_color_buffer[i] = 0;
-	
-	pthread_create(&thread0, NULL, &thread_0, &pixel_color_buffer );
-	
-	Vec3 camera_pos;
-	set( camera_pos, 0., 0., -4. );
-	Vec3 camera_dir;
-	set( camera_dir, 0., 0., 1. );
-	
-	Vec3 bg_color;
-	set( bg_color, 0.8, 0.8, 1 );
-	Vec3 pixel_color;
-	set( pixel_color, 0, 0, 0 );
-
-
-
-	float res_0[2600];
-	float res_1[2600];
-	float res_2[2600];
-
-	/* for every pixel */
-	for( int px=0; px<width; ++px )
-	{
-		
-		for( int py=0; py<height; ++py )
-		{
-
-		if(in_count == out_count)
-			continue;
-		
-    //       pthread_mutex_lock(&lock_buffer);
-		   
-		   
-		   copy(pixel_color, pixel_color_buffer+in_count*3);
-		   
-			
-			out_count++;
-		//	if(out_count > 10) out_count = 0;
-			
-    //        pthread_mutex_unlock(&lock_buffer);
 			/* at this point, have accumulated (2*halfSamples)^2 samples,
 			 * so need to average out the final pixel color
 			 */
@@ -339,6 +245,109 @@ main( int argc, char **argv )
 		}
 	}
 
+	pthread_exit(NULL);
+
+}
+
+pthread_t pthr_sub;
+
+int
+main( int argc, char **argv )
+{
+	scene_t scene = create_sphereflake_scene( sphereflake_recursion );
+
+	pthread_create(&pthr_sub, NULL, &sub_thr, &scene);
+	/* Write the image format header */
+	/* P3 is an ASCII-formatted, color, PPM file */
+	Vec3 camera_pos;
+	set( camera_pos, 0., 0., -4. );
+	Vec3 camera_dir;
+	set( camera_dir, 0., 0., 1. );
+	const double camera_fov = 75.0 * (PI/180.0);
+	Vec3 bg_color;
+	set( bg_color, 0.8, 0.8, 1 );
+
+	const double pixel_dx = tan( 0.5*camera_fov ) / ((double)width*0.5);
+	const double pixel_dy = tan( 0.5*camera_fov ) / ((double)height*0.5);
+	const double subsample_dx
+	= halfSamples  ? pixel_dx / ((double)halfSamples*2.0)
+			: pixel_dx;
+	const double subsample_dy
+	= halfSamples ? pixel_dy / ((double)halfSamples*2.0)
+			: pixel_dy;
+
+	/*float res_0[2600];
+	float res_1[2600];
+	float res_2[2600];*/
+
+	/* for every pixel */
+	for( int px=0; px<20; ++px )
+	{
+		const double x = pixel_dx * ((double)( px-(width/2) ));
+		for( int py=0; py<height; ++py )
+		{
+			const double y = pixel_dy * ((double)( py-(height/2) ));
+			Vec3 pixel_color;
+			set( pixel_color, 0, 0, 0 );
+
+			for( int xs=-halfSamples; xs<=halfSamples; ++xs )
+			{
+				for( int ys=-halfSamples; ys<=halfSamples; ++ys )
+				{
+					double subx = x + ((double)xs)*subsample_dx;
+					double suby = y + ((double)ys)*subsample_dy;
+
+					/* construct the ray coming out of the camera, through
+					 * the screen at (subx,suby)
+					 */
+					 ray_t pixel_ray;
+					 copy( pixel_ray.org, camera_pos );
+					 Vec3 pixel_target;
+					 set( pixel_target, subx, suby, z );
+					 sub( pixel_ray.dir, pixel_target, camera_pos );
+					 norm( pixel_ray.dir, pixel_ray.dir );
+
+					 Vec3 sample_color;
+					 copy( sample_color, bg_color );
+					 /* trace the ray from the camera that
+					  * passes through this pixel */
+					 trace( &scene, sample_color, &pixel_ray, 0 );
+					 /* sum color for subpixel AA */
+					 add( pixel_color, pixel_color, sample_color );
+				}
+			}
+
+			/* at this point, have accumulated (2*halfSamples)^2 samples,
+			 * so need to average out the final pixel color
+			 */
+			if( halfSamples )
+			{
+				mul( pixel_color, pixel_color,
+						(1.0/( 4.0 * halfSamples * halfSamples ) ) );
+			}
+
+			/* done, final floating point color values are in pixel_color */
+			float scaled_color[3];
+			scaled_color[0] = gamma( pixel_color[0] ) * max_color;
+			scaled_color[1] = gamma( pixel_color[1] ) * max_color;
+			scaled_color[2] = gamma( pixel_color[2] ) * max_color;
+
+			/* enforce caps, replace with real gamma */
+			for( int i=0; i<3; i++)
+				scaled_color[i] = max( min(scaled_color[i], 255), 0);
+
+			/* write this pixel out to disk. ppm is forgiving about whitespace,
+			 * but has a maximum of 70 chars/line, so use one line per pixel
+			 */
+			res_0[px*width + py] = scaled_color[0];
+			res_1[px*width + py] = scaled_color[1];
+			res_2[px*width + py] = scaled_color[2];
+
+		}
+	}
+
+	pthread_join(pthr_sub,NULL);
+
 	FILE *fp = fopen("res.ppm", "w");
 	fprintf(fp, "P3\n%d %d\n255\n", width, height);
 
@@ -353,16 +362,13 @@ main( int argc, char **argv )
 	fclose(fp);
 
 
-	
+	free_scene( &scene );
 
 	if( ferror( stdout ) || fclose( stdout ) != 0 )
 	{
 		fprintf( stderr, "Output error\n" );
 		return 1;
 	}
-	
-	pthread_join(thread0,NULL);
-  	pthread_mutex_destroy(&lock_buffer);
-	
+
 	return 0;
 }

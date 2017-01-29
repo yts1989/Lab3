@@ -39,10 +39,10 @@ typedef struct param{
   void* depth(void* arg){
         for( int i = ((param *)arg)->Count; i<8; i+=2 )
         {
-            pthread_mutex_lock(&locker);
+            //pthread_mutex_lock(&locker);
             double depth = sphere_intersect( &(((param *)arg)->scene->spheres[i]), ((param *)arg)->ray);
          //   printf("%d\n", i );
-            pthread_mutex_unlock(&locker);
+            //pthread_mutex_unlock(&locker);
             if( depth < ((param *)arg)->closest_depth )
             {
                ((param *)arg)->closest_depth = depth;
@@ -52,6 +52,7 @@ typedef struct param{
 		
         }
 		//	printf("%d", ((param *)arg)->closest_index);
+        pthread_exit(0);
 	
     } 
 /*
@@ -94,7 +95,7 @@ void trace( scene_t* scene, Vec3 out_color, ray_t* ray, int recursion_depth )
 	
 	
 	
-	pthread_mutex_init(&locker, NULL);
+	//pthread_mutex_init(&locker, NULL);
     pthread_create(&dp_odd, NULL, &depth, &thread1);
     pthread_create(&dp_even, NULL, &depth, &thread2);
 	
@@ -121,7 +122,7 @@ void trace( scene_t* scene, Vec3 out_color, ray_t* ray, int recursion_depth )
      
 	
 	
-    pthread_mutex_destroy(&locker);
+    //pthread_mutex_destroy(&locker);
 	
 }
 
